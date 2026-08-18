@@ -4,9 +4,12 @@ import { Transformer, TransformerOptions } from "../types/transformer";
 export class ReasoningTransformer implements Transformer {
   static TransformerName = "reasoning";
   enable: any;
+  stripUnsupportedParams: boolean;
 
   constructor(private readonly options?: TransformerOptions) {
     this.enable = this.options?.enable ?? true;
+    this.stripUnsupportedParams =
+      this.options?.strip_unsupported_params ?? false;
   }
 
   async transformRequestIn(
@@ -36,6 +39,10 @@ export class ReasoningTransformer implements Transformer {
         budget_tokens: request.reasoning.max_tokens,
       };
       request.enable_thinking = true;
+    }
+    if (this.stripUnsupportedParams) {
+      delete request.reasoning;
+      delete request.enable_thinking;
     }
     return request;
   }
