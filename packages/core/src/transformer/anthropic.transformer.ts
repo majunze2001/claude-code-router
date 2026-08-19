@@ -751,8 +751,10 @@ export class AnthropicTransformer implements Transformer {
                         toolCallIndex,
                         newContentBlockIndex
                       );
-                      const toolCallId =
-                        toolCall.id || `call_${Date.now()}_${toolCallIndex}`;
+                      // Some OpenAI-compatible providers reuse IDs such as
+                      // `Bash_0` on every turn. Give Claude Code a unique ID so
+                      // later tool results cannot collide with earlier calls.
+                      const toolCallId = `call_${uuidv4()}`;
                       const toolCallName =
                         toolCall.function?.name || `tool_${toolCallIndex}`;
                       const contentBlockStart = {
@@ -1012,7 +1014,7 @@ export class AnthropicTransformer implements Transformer {
 
           content.push({
             type: "tool_use",
-            id: toolCall.id,
+            id: `call_${uuidv4()}`,
             name: toolCall.function.name,
             input: parsedInput,
           });
