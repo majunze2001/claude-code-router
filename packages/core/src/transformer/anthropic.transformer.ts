@@ -48,15 +48,22 @@ export class AnthropicTransformer implements Transformer {
     request: Record<string, any>
   ): Promise<UnifiedChatRequest> {
     const messages: UnifiedMessage[] = [];
+    const system =
+      Array.isArray(request.system) &&
+      request.system[0]?.type === "text" &&
+      typeof request.system[0]?.text === "string" &&
+      request.system[0].text.startsWith("x-anthropic-billing-header")
+        ? request.system.slice(1)
+        : request.system;
 
-    if (request.system) {
-      if (typeof request.system === "string") {
+    if (system) {
+      if (typeof system === "string") {
         messages.push({
           role: "system",
-          content: request.system,
+          content: system,
         });
-      } else if (Array.isArray(request.system) && request.system.length) {
-        const textParts = request.system
+      } else if (Array.isArray(system) && system.length) {
+        const textParts = system
           .filter((item: any) => item.type === "text" && item.text)
           .map((item: any) => ({
             type: "text" as const,
