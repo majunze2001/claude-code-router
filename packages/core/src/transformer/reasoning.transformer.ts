@@ -176,13 +176,23 @@ export class ReasoningTransformer implements Transformer {
                   delete data.choices[0].delta.reasoning_content;
                 }
 
-                // Send the modified chunk
-                if (
-                  data.choices?.[0]?.delta &&
-                  Object.keys(data.choices[0].delta).length > 0
-                ) {
-                  if (context.isReasoningComplete()) {
-                    data.choices[0].index++;
+                // Send content deltas as well as terminal metadata. Kimi can
+                // attach usage to a finish chunk whose delta is empty, while
+                // standard OpenAI streams use a separate usage-only chunk.
+                const choice = data.choices?.[0];
+                const hasDelta =
+                  choice?.delta && Object.keys(choice.delta).length > 0;
+                const hasTerminalMetadata =
+                  choice?.finish_reason != null ||
+                  choice?.usage != null ||
+                  data.usage != null;
+                if (hasDelta || hasTerminalMetadata) {
+                  if (
+                    context.isReasoningComplete() &&
+                    choice &&
+                    typeof choice.index === "number"
+                  ) {
+                    choice.index++;
                   }
                   const modifiedLine = `data: ${JSON.stringify(data)}\n\n`;
                   controller.enqueue(encoder.encode(modifiedLine));

@@ -474,7 +474,11 @@ export class AnthropicTransformer implements Transformer {
                 }
 
                 const choice = chunk.choices?.[0];
-                if (chunk.usage) {
+                // Some OpenAI-compatible providers (including Kimi when
+                // thinking is enabled) attach usage to the final choice
+                // instead of the top-level chunk.
+                const usage = chunk.usage ?? choice?.usage;
+                if (usage) {
                   if (!stopReasonMessageDelta) {
                     stopReasonMessageDelta = {
                       type: "message_delta",
@@ -484,24 +488,21 @@ export class AnthropicTransformer implements Transformer {
                       },
                       usage: {
                         input_tokens:
-                          (chunk.usage?.prompt_tokens || 0) -
-                          (chunk.usage?.prompt_tokens_details?.cached_tokens ||
-                            0),
-                        output_tokens: chunk.usage?.completion_tokens || 0,
+                          (usage.prompt_tokens || 0) -
+                          (usage.prompt_tokens_details?.cached_tokens || 0),
+                        output_tokens: usage.completion_tokens || 0,
                         cache_read_input_tokens:
-                          chunk.usage?.prompt_tokens_details?.cached_tokens ||
-                          0,
+                          usage.prompt_tokens_details?.cached_tokens || 0,
                       },
                     };
                   } else {
                     stopReasonMessageDelta.usage = {
                       input_tokens:
-                        (chunk.usage?.prompt_tokens || 0) -
-                        (chunk.usage?.prompt_tokens_details?.cached_tokens ||
-                          0),
-                      output_tokens: chunk.usage?.completion_tokens || 0,
+                        (usage.prompt_tokens || 0) -
+                        (usage.prompt_tokens_details?.cached_tokens || 0),
+                      output_tokens: usage.completion_tokens || 0,
                       cache_read_input_tokens:
-                        chunk.usage?.prompt_tokens_details?.cached_tokens || 0,
+                        usage.prompt_tokens_details?.cached_tokens || 0,
                     };
                   }
                 }
@@ -900,18 +901,18 @@ export class AnthropicTransformer implements Transformer {
                       },
                       usage: {
                         input_tokens:
-                          (chunk.usage?.prompt_tokens || 0) -
-                          (chunk.usage?.prompt_tokens_details?.cached_tokens ||
-                            0),
-                        output_tokens: chunk.usage?.completion_tokens || 0,
+                          (usage?.prompt_tokens || 0) -
+                          (usage?.prompt_tokens_details?.cached_tokens || 0),
+                        output_tokens: usage?.completion_tokens || 0,
                         cache_read_input_tokens:
-                          chunk.usage?.prompt_tokens_details?.cached_tokens ||
-                          0,
+                          usage?.prompt_tokens_details?.cached_tokens || 0,
                       },
                     };
                   }
 
-                  break;
+                  // Keep processing buffered lines: standard OpenAI streams
+                  // may send a separate usage-only chunk after finish_reason.
+                  continue;
                 }
               } catch (parseError: any) {
                 this.logger?.error(
