@@ -32,6 +32,7 @@ import { recordProviderCredentialOutcome } from "@ccr/core/providers/credential-
 import { codexApplyPatchBridgeResponseStream, prepareCodexApplyPatchBridgeRequest } from "@ccr/core/gateway/features/codex-patch-bridge";
 import { codexMultiAgentBridgeResponseStream, prepareCodexMultiAgentBridgeRequest } from "@ccr/core/gateway/features/codex-multi-agent-bridge";
 import { rewriteAnthropicMessageStartModelStream, shouldRewriteAnthropicMessageStartModel } from "@ccr/core/gateway/features/anthropic-response-model";
+import { rewriteAnthropicToolCallIdsStream, shouldRewriteAnthropicToolCallIds } from "@ccr/core/gateway/features/anthropic-tool-call-ids";
 import { prepareCursorOpenAICompatChatBody } from "@ccr/core/gateway/features/cursor-compat";
 import { filteredResponseHeaders, formatError, formatUpstreamErrorForLog, forwardHeaders, inferGatewayClient, readRequestBody, sendJson, shouldCaptureGatewayUsage, shouldSendBody, stripLocalGatewayAuthHeaders } from "@ccr/core/gateway/http/io";
 import { parseJsonObjectSafe, serializeJsonBody, takeJsonObject } from "@ccr/core/gateway/http/body";
@@ -841,7 +842,12 @@ export class GatewayRequestPipeline {
         model: clientVisibleResponseModel,
         protocol: responseProtocol
       });
-      if (codexApplyPatchBridgeActive || codexMultiAgentBridgeActive || appendContextArchiveFooter || transformCodexCompactResponse || rewriteAnthropicResponseModel) {
+      const rewriteAnthropicToolCallIds = upstreamResponse.ok && shouldRewriteAnthropicToolCallIds({
+        clientProtocol: responseProtocol,
+        contentType: responseHeaders.get("content-type") ?? undefined,
+        providerProtocol: upstreamResult.attempt.credentialProtocol ?? resolveResponseProviderProtocol(responseHeaders, this.config)
+      });
+      if (codexApplyPatchBridgeActive || codexMultiAgentBridgeActive || appendContextArchiveFooter || transformCodexCompactResponse || rewriteAnthropicResponseModel || rewriteAnthropicToolCallIds) {
         responseHeaders.delete("content-length");
       }
       recordProviderCredentialOutcome(this.config, method, upstreamResult.attempt, upstreamResponse.status, responseHeaders);
@@ -905,10 +911,13 @@ export class GatewayRequestPipeline {
               codexCompactCompatResponseMode
             )
           : hostedWebSearchResponseBody;
-      const clientResponseBody = rewriteAnthropicResponseModel && clientVisibleResponseModel
-        ? rewriteAnthropicMessageStartModelStream(responseBody, clientVisibleResponseModel)
+      const toolCallIdResponseBody = rewriteAnthropicToolCallIds
+        ? rewriteAnthropicToolCallIdsStream(responseBody, responseHeaders.get("content-type") ?? undefined)
         : responseBody;
-      const responseStreams = uniqueStreams([upstreamBody, patchedResponseBody, multiAgentResponseBody, hostedWebSearchResponseBody, responseBody, clientResponseBody]);
+      const clientResponseBody = rewriteAnthropicResponseModel && clientVisibleResponseModel
+        ? rewriteAnthropicMessageStartModelStream(toolCallIdResponseBody, clientVisibleResponseModel)
+        : toolCallIdResponseBody;
+      const responseStreams = uniqueStreams([upstreamBody, patchedResponseBody, multiAgentResponseBody, hostedWebSearchResponseBody, responseBody, toolCallIdResponseBody, clientResponseBody]);
       const sampler = createBodySampler();
       const sseErrorDetector = createSseErrorDetector(responseHeaders.get("content-type") ?? undefined);
       let streamDetectedError: string | undefined;

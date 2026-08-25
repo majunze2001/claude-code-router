@@ -180,6 +180,8 @@ export type GatewayProviderConfig = {
   modelMetadata?: Record<string, ProviderModelMetadata>;
   models: string[];
   name: string;
+  openaiChatReasoningSplit?: "auto" | "disabled" | "enabled";
+  openaiChatThinkingOptions?: "auto" | "disabled" | "enabled";
   provider?: string;
   protocolDetectionMode?: "auto" | "manual";
   transformer?: unknown;

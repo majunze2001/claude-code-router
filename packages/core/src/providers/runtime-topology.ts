@@ -166,6 +166,12 @@ function toCoreGatewayProvider(
       : capability
         ? providerCapabilityInternalName(provider, type)
         : providerRuntimeId(provider),
+    ...(type === "openai_chat_completions" && provider.openaiChatReasoningSplit
+      ? { openaiChatReasoningSplit: provider.openaiChatReasoningSplit }
+      : {}),
+    ...(type === "openai_chat_completions" && provider.openaiChatThinkingOptions
+      ? { openaiChatThinkingOptions: provider.openaiChatThinkingOptions }
+      : {}),
     type
   };
 }

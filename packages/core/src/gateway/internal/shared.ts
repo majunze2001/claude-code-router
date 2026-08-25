@@ -17,6 +17,8 @@ export type CoreGatewayProvider = {
   extraHeaders?: unknown;
   models: string[];
   name: string;
+  openaiChatReasoningSplit?: "auto" | "disabled" | "enabled";
+  openaiChatThinkingOptions?: "auto" | "disabled" | "enabled";
   type: GatewayProviderCapabilityProtocol;
 };
 

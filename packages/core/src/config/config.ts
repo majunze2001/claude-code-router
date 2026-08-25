@@ -1440,6 +1440,16 @@ function parseProviders(value: unknown): GatewayProviderConfig[] | undefined {
         modelMetadata,
         models,
         name,
+        openaiChatReasoningSplit: parseEnumValue(
+          item.openaiChatReasoningSplit ?? item.openai_chat_reasoning_split,
+          ["auto", "disabled", "enabled"],
+          undefined
+        ),
+        openaiChatThinkingOptions: parseEnumValue(
+          item.openaiChatThinkingOptions ?? item.openai_chat_thinking_options,
+          ["auto", "disabled", "enabled"],
+          undefined
+        ),
         provider: readString(item.provider),
         protocolDetectionMode: parseEnumValue(item.protocolDetectionMode, ["auto", "manual"], undefined),
         transformer: item.transformer,
