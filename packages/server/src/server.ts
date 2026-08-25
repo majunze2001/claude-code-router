@@ -31,7 +31,7 @@ export const createServer = async (config: any): Promise<any> => {
 
   app.register(fastifyMultipart, {
     limits: {
-      fileSize: 50 * 1024 * 1024, // 50MB
+      fileSize: 256 * 1024 * 1024, // 256 MiB
     },
   });
 
