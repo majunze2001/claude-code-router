@@ -61,6 +61,45 @@ test("caller-supplied prompt_cache_key is never overwritten", () => {
   assert.equal(result.body.prompt_cache_key, "caller-key");
 });
 
+test("opted-in OpenAI Chat bodies gain prompt_cache_key without Responses metadata", () => {
+  const input = responsesInput({
+    openaiChatPromptCacheAffinity: true,
+    targetProviderConfig: {
+      type: "openai_chat_completions"
+    },
+    upstreamRequest: {
+      body: {
+        max_tokens: 32000,
+        messages: [],
+        model: "moonshotai/Kimi-K3",
+        stream: true
+      },
+      bodyEncoding: "json",
+      headers: { "content-type": "application/json" },
+      method: "POST",
+      url: "https://provider.example/v1/chat/completions"
+    }
+  });
+
+  const result = applyResponsesSessionAffinity(input);
+
+  assert.equal(result.body.prompt_cache_key, "session-1111-2222");
+  assert.equal(result.body.metadata, undefined);
+  assert.equal(input.upstreamRequest.body.prompt_cache_key, undefined);
+});
+
+test("OpenAI Chat prompt cache affinity is opt-in", () => {
+  for (const openaiChatPromptCacheAffinity of [undefined, false]) {
+    const input = responsesInput({
+      openaiChatPromptCacheAffinity,
+      targetProviderConfig: {
+        type: "openai_chat_completions"
+      }
+    });
+    assert.equal(applyResponsesSessionAffinity(input), input.upstreamRequest);
+  }
+});
+
 test("empty prompt_cache_key is treated as missing", () => {
   const input = responsesInput();
   input.upstreamRequest.body.prompt_cache_key = "  ";
@@ -91,7 +130,7 @@ test("x-claude-session-id and inbound metadata.user_id are fallback key sources"
   assert.equal(resolveResponsesSessionKey(undefined, undefined), undefined);
 });
 
-test("non-Responses providers and non-JSON bodies pass through untouched", () => {
+test("non-opted-in providers and non-JSON bodies pass through untouched", () => {
   const chatInput = responsesInput({
     targetProviderConfig: { type: "openai_chat_completions" }
   });
@@ -136,6 +175,25 @@ test("gateway boundary plugin registers the session affinity hook", async () => 
 
   const input = responsesInput();
   const result = await affinityHook.transformRequest(input);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.value.body.prompt_cache_key, "session-1111-2222");
+});
+
+test("targeted OpenAI Chat plugin opts only its configured provider into affinity", async () => {
+  const hooks = createGatewayPlugin({
+    plugin: {
+      key: "ccr-openai-chat-session-affinity-1",
+      match: { providerName: "kimi" }
+    }
+  }).providerHooks;
+  assert.equal(hooks.length, 1);
+  assert.equal(hooks[0].providerName, "kimi");
+
+  const input = responsesInput({
+    targetProviderConfig: { type: "openai_chat_completions" }
+  });
+  const result = await hooks[0].transformRequest(input);
 
   assert.equal(result.ok, true);
   assert.equal(result.value.body.prompt_cache_key, "session-1111-2222");

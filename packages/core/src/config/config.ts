@@ -1440,6 +1440,11 @@ function parseProviders(value: unknown): GatewayProviderConfig[] | undefined {
         modelMetadata,
         models,
         name,
+        openaiChatPromptCacheKey: parseEnumValue(
+          item.openaiChatPromptCacheKey ?? item.openai_chat_prompt_cache_key,
+          ["disabled", "enabled"],
+          undefined
+        ),
         openaiChatReasoningSplit: parseEnumValue(
           item.openaiChatReasoningSplit ?? item.openai_chat_reasoning_split,
           ["auto", "disabled", "enabled"],

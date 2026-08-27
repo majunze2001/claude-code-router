@@ -75,12 +75,12 @@ export class ClaudeCodeRouterPlugin {
       method: input.method,
       url: input.url
     };
+    request.builtInClaudeCodeSubagent = removeClaudeCodeBillingSystemHeader(request.body);
     applyAgentRequestEnrichers(request, [{
       enrich: (matchedRequest) => {
         const profile = resolveBuiltInAgentProfile(matchedRequest, this.config, "claude-code");
         injectClaudeCodeAgentToolDescription(matchedRequest.body, this.config, profile);
         injectClaudeCodeToolHubInstructions(matchedRequest.body, this.config);
-        matchedRequest.builtInClaudeCodeSubagent = removeClaudeCodeBillingSystemHeader(matchedRequest.body);
         matchedRequest.builtInSubagentModel = extractAndRemoveClaudeCodeSubagentModelTag(matchedRequest.body);
       },
       id: "claude-code",

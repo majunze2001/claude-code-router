@@ -11,6 +11,7 @@ type UpstreamRequest = {
 };
 
 export type ResponsesSessionAffinityInput = {
+  openaiChatPromptCacheAffinity?: boolean;
   request?: {
     body?: unknown;
     headers?: Record<string, HeaderValue>;
@@ -25,17 +26,18 @@ const sessionIdHeaderNames = ["x-claude-code-session-id", "x-claude-session-id"]
 
 /**
  * Copies the Claude Code session identity onto outbound OpenAI Responses
- * bodies. The protocol conversion emits neither `prompt_cache_key` nor
- * `metadata.user_id`, so multi-channel Responses upstreams that pin sessions
- * on body fields hash each turn onto a different channel and the next hop
- * rejects channel-bound `encrypted_content` continuations. A caller-supplied
+ * bodies and opted-in OpenAI Chat Completions bodies. The protocol conversion
+ * emits no `prompt_cache_key`, so upstreams that use it for session affinity
+ * can send consecutive turns to different cache shards. A caller-supplied
  * non-empty `prompt_cache_key` always wins; other protocols and non-JSON
  * bodies pass through untouched.
  */
 export function applyResponsesSessionAffinity(input: ResponsesSessionAffinityInput): UpstreamRequest {
   const upstreamRequest = input.upstreamRequest;
   const providerType = input.targetProviderConfig?.type?.trim().toLowerCase();
-  if (providerType !== "openai_responses") {
+  const responsesProvider = providerType === "openai_responses";
+  const optedInChatProvider = providerType === "openai_chat_completions" && input.openaiChatPromptCacheAffinity === true;
+  if (!responsesProvider && !optedInChatProvider) {
     return upstreamRequest;
   }
   const body = upstreamRequest.body;
@@ -51,7 +53,7 @@ export function applyResponsesSessionAffinity(input: ResponsesSessionAffinityInp
       changes.prompt_cache_key = sessionKey;
     }
   }
-  if (inboundUserId && body.metadata === undefined) {
+  if (responsesProvider && inboundUserId && body.metadata === undefined) {
     changes.metadata = { user_id: inboundUserId };
   }
   if (Object.keys(changes).length === 0) {

@@ -681,7 +681,11 @@ test("profile enhanced route switch disables the built-in Claude Code route when
     }]
   });
   const result = await plugin.routeRequest({
-    body: { messages: [], model: "claude-default" },
+    body: {
+      messages: [],
+      model: "claude-default",
+      system: claudeCodeBillingSystem(false)
+    },
     headers: {
       "user-agent": "claude-code/1.0"
     },
@@ -690,6 +694,7 @@ test("profile enhanced route switch disables the built-in Claude Code route when
   });
 
   assert.equal(result.body.model, "claude-default");
+  assert.equal("system" in result.body, false);
   assert.equal(result.decision.reason, "default");
   assert.equal(result.decision.source, "default");
 });

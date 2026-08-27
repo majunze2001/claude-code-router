@@ -180,6 +180,7 @@ export type GatewayProviderConfig = {
   modelMetadata?: Record<string, ProviderModelMetadata>;
   models: string[];
   name: string;
+  openaiChatPromptCacheKey?: "disabled" | "enabled";
   openaiChatReasoningSplit?: "auto" | "disabled" | "enabled";
   openaiChatThinkingOptions?: "auto" | "disabled" | "enabled";
   provider?: string;

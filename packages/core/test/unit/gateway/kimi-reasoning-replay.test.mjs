@@ -13,10 +13,12 @@ test("provider config preserves native OpenAI-chat reasoning options", () => {
   const [provider] = parseProvidersForTest([{
     models: ["moonshotai/Kimi-K3"],
     name: "kimi",
+    openai_chat_prompt_cache_key: "enabled",
     openai_chat_reasoning_split: "enabled",
     openai_chat_thinking_options: "disabled"
   }]);
 
+  assert.equal(provider.openaiChatPromptCacheKey, "enabled");
   assert.equal(provider.openaiChatReasoningSplit, "enabled");
   assert.equal(provider.openaiChatThinkingOptions, "disabled");
 });
@@ -50,6 +52,7 @@ test("v3 gateway replays Anthropic thinking through native Kimi compatibility se
     id: "kimi",
     models: ["moonshotai/Kimi-K3"],
     name: "kimi",
+    openaiChatPromptCacheKey: "enabled",
     openaiChatReasoningSplit: "enabled",
     openaiChatThinkingOptions: "disabled",
     type: "openai_chat_completions"
@@ -64,6 +67,10 @@ test("v3 gateway replays Anthropic thinking through native Kimi compatibility se
   const provider = compiled.providers.find((item) => item.name === "kimi");
   assert.equal(provider.openaiChatReasoningSplit, "enabled");
   assert.equal(provider.openaiChatThinkingOptions, "disabled");
+  assert.deepEqual(
+    compiled.plugins.find((item) => item.key.startsWith("ccr-openai-chat-session-affinity-"))?.match,
+    { providerName: "kimi" }
+  );
   assert.deepEqual(
     compiled.providerPlugins.find((item) => item.key === "kimi-reasoning-replay")?.request?.bodyRemove,
     unsupportedKimiRequestFields
@@ -104,6 +111,7 @@ test("v3 gateway replays Anthropic thinking through native Kimi compatibility se
     }),
     headers: {
       "content-type": "application/json",
+      "x-claude-code-session-id": "session-cache-affinity",
       "x-ccr-core-auth": "core-token",
       "x-target-provider": "kimi"
     },
@@ -111,6 +119,7 @@ test("v3 gateway replays Anthropic thinking through native Kimi compatibility se
   });
   assert.equal(gatewayResponse.status, 200, await gatewayResponse.text());
   assert.ok(capturedBody);
+  assert.equal(capturedBody.prompt_cache_key, "session-cache-affinity");
   assert.equal(capturedBody.max_tokens, 4096);
   for (const field of unsupportedKimiRequestFields) {
     assert.equal(capturedBody[field], undefined);

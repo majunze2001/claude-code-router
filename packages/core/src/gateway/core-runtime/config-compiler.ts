@@ -22,6 +22,7 @@ import { isLocalAgentOauthProviderPlugin } from "@ccr/core/gateway/core-runtime/
 import { resolveConfiguredProviderModelSelector, resolveUniqueConfiguredProviderModelSelector } from "@ccr/core/routing/model-resolution";
 
 const upstreamHeaderSanitizerPluginKey = "ccr-upstream-header-sanitizer";
+const openaiChatSessionAffinityPluginKeyPrefix = "ccr-openai-chat-session-affinity-";
 const localAgentAuthProviderHookPluginKey = "ccr-local-agent-auth-provider-hooks";
 export const unlimitedVirtualModelToolCalls = Number.MAX_SAFE_INTEGER;
 export const unlimitedVirtualModelToolTurns = Number.MAX_SAFE_INTEGER;
@@ -85,6 +86,16 @@ export async function compileCoreGatewayConfig(
       .filter((provider): provider is CoreGatewayProvider => Boolean(provider)),
     ...builtinToolArtifacts.providers
   ];
+  const openaiChatSessionAffinityPlugins = enabledProviders
+    .filter((provider) => provider.openaiChatPromptCacheKey === "enabled")
+    .flatMap((provider) => toCoreGatewayProviders(provider))
+    .filter((provider): provider is CoreGatewayProvider => provider?.type === "openai_chat_completions")
+    .map((provider, index) => ({
+      enabled: true,
+      key: `${openaiChatSessionAffinityPluginKeyPrefix}${index + 1}`,
+      match: { providerName: provider.name },
+      modulePath: resolveUpstreamHeaderSanitizerEntry()
+    }));
   const localAgentAuthProviderHookPlugin = localAgentAuthProviderHookPluginConfig(providerPluginsWithCapabilityAliases);
   const pluginAgentConfig = isRecord(pluginCoreGatewayConfig.agent) ? pluginCoreGatewayConfig.agent : {};
   const pluginMcpServers = Array.isArray(pluginAgentConfig.mcpServers) ? pluginAgentConfig.mcpServers : [];
@@ -143,6 +154,7 @@ export async function compileCoreGatewayConfig(
     plugins: [
       ...configuredGatewayPlugins,
       ...(localAgentAuthProviderHookPlugin ? [localAgentAuthProviderHookPlugin] : []),
+      ...openaiChatSessionAffinityPlugins,
       {
         enabled: true,
         key: upstreamHeaderSanitizerPluginKey,

@@ -23,6 +23,17 @@ type ProviderPluginRequestInput = {
   upstreamRequest: UpstreamRequest;
 };
 
+type GatewayPluginFactoryInput = {
+  plugin?: {
+    key?: string;
+    match?: {
+      providerName?: string;
+    };
+  };
+};
+
+const openaiChatSessionAffinityPluginKeyPrefix = "ccr-openai-chat-session-affinity-";
+
 const ccrAuthHeaderNames = new Set([
   "x-auth-api-key-id",
   "x-auth-sub"
@@ -185,7 +196,28 @@ function joinUrlPath(base: string, remainder: string): string {
   return `${base}/${normalizedRemainder}`;
 }
 
-export function createGatewayPlugin() {
+export function createGatewayPlugin(input: GatewayPluginFactoryInput = {}) {
+  const pluginKey = input.plugin?.key?.trim();
+  const affinityProviderName = pluginKey?.startsWith(openaiChatSessionAffinityPluginKeyPrefix)
+    ? input.plugin?.match?.providerName?.trim()
+    : undefined;
+  if (pluginKey && affinityProviderName) {
+    return {
+      providerHooks: [{
+        key: `${pluginKey}-hook`,
+        providerName: affinityProviderName,
+        transformRequest(hookInput: ResponsesSessionAffinityInput) {
+          return {
+            ok: true as const,
+            value: applyResponsesSessionAffinity({
+              ...hookInput,
+              openaiChatPromptCacheAffinity: true
+            })
+          };
+        }
+      }]
+    };
+  }
   return {
     providerHooks: [{
       key: "ccr-upstream-header-sanitizer",
